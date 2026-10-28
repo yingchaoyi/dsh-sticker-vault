@@ -1,0 +1,4 @@
+# dsh-sticker-vault bundle patch：把表情库挂进 profile。
+- insert:
+    - id: sticker-vault
+      name: dsh-sticker-vault

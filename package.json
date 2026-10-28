@@ -1,0 +1,65 @@
+{
+  "name": "dsh-sticker-vault",
+  "version": "0.1.0",
+  "description": "DSH 插件 · 表情包库：群友发的图先落盘，重复到 N 次自动入库，记作者、语境、标签；对喷/接梗时按语境捞出来发。",
+  "type": "module",
+  "main": "lib/index.mjs",
+  "exports": {
+    ".": "./lib/index.mjs",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "sticker",
+    "meme",
+    "qq-bot"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "slots"
+      ],
+      "external": [
+        "react"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs && node test/client-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "author": "yingchaoyi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yingchaoyi/dsh-sticker-vault.git"
+  },
+  "homepage": "https://github.com/yingchaoyi/dsh-sticker-vault#readme",
+  "bugs": {
+    "url": "https://github.com/yingchaoyi/dsh-sticker-vault/issues"
+  }
+}
