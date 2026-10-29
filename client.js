@@ -72,7 +72,7 @@ window.__ModuleLoader__.load({
       ])
     }
 
-    function ItemCard({ it, edits, setEdit, onPatch, onDelete }) {
+    function ItemCard({ it, edits, setEdit, onPatch, onDelete, onDescribe }) {
       const [openCtx, setOpenCtx] = useState(false)
       const edit = edits[it.id] || {}
       const desc = edit.desc !== undefined ? edit.desc : it.desc
@@ -87,7 +87,7 @@ window.__ModuleLoader__.load({
             it.locked ? ' · 🔒 已锁' : '',
           ].join('')),
           h('input', {
-            key: 'desc', className: 'sv-in', placeholder: '描述：这张图是什么内容',
+            key: 'desc', className: 'sv-in', placeholder: it.describedAt ? '描述：这张图是什么内容' : '描述还没写——点下面「AI 补」让它自己看图和聊天',
             value: desc,
             onChange: (e) => setEdit(it.id, { desc: e.target.value }),
             onBlur: saveDesc,
@@ -102,6 +102,7 @@ window.__ModuleLoader__.load({
           }),
           h('div', { key: 'ops', className: 'sv-row' }, [
             h('button', { key: 'lock', className: 'sv-btn' + (it.locked ? ' on' : ''), onClick: () => onPatch(it.id, { locked: !it.locked }) }, it.locked ? '🔒 已锁' : '🔓 上锁'),
+            h('button', { key: 'ai', className: 'sv-btn', onClick: () => onDescribe(it.id) }, 'AI 补'),
             h('button', { key: 'ctx', className: 'sv-btn', onClick: () => setOpenCtx(!openCtx) }, `语境 ${it.contexts.length}`),
             h('button', { key: 'del', className: 'sv-btn danger', onClick: () => onDelete(it) }, '删除'),
           ]),
@@ -160,6 +161,15 @@ window.__ModuleLoader__.load({
           const r = await jpost('/delete', { id: it.id, force: false })
           if (!r.ok) return flash(r.error || '删不掉')
           flash('删了'); load()
+        } catch (e) { flash(String(e.message || e)) }
+      }
+
+      const describe = async (ids) => {
+        try {
+          const r = await jpost('/describe', ids ? { ids } : {})
+          if (!r.enabled) return flash('补描述是关的，先打开')
+          flash(r.queued ? `排了 ${r.queued} 张，后台慢慢写` : '没有要补的')
+          load()
         } catch (e) { flash(String(e.message || e)) }
       }
 
@@ -222,6 +232,7 @@ window.__ModuleLoader__.load({
           h('span', { key: 'e', className: 'sv-chip' }, [`每人最多 ${s.perMember} 张`]),
           h('span', { key: 'f', className: 'sv-chip' }, [`计数 ${s.resetDays} 天清一次`]),
           h('span', { key: 'g', className: 'sv-chip' }, [`清后库内从 ${s.resetItemTo} 次算`]),
+          st.stats.pendingDescribe > 0 ? h('span', { key: 'h', className: 'sv-chip' }, ['描述待补 ', h('b', { key: 'b' }, st.stats.pendingDescribe), ' 张']) : null,
         ]),
 
         h('div', { key: 'grid', className: 'sv-grid' }, [
@@ -235,6 +246,8 @@ window.__ModuleLoader__.load({
         h('div', { key: 'row', className: 'sv-row' }, [
           h('button', { key: 'auto', className: 'sv-btn' + (s.autoCapture ? ' on' : ''), onClick: () => patchSettings({ autoCapture: !s.autoCapture }) }, s.autoCapture ? '自动收录：开' : '自动收录：关'),
           h('button', { key: 'hint', className: 'sv-btn' + (s.hint ? ' on' : ''), onClick: () => patchSettings({ hint: !s.hint }) }, s.hint ? '提示词提醒：开' : '提示词提醒：关'),
+          h('button', { key: 'ai', className: 'sv-btn' + (s.autoDescribe ? ' on' : ''), onClick: () => patchSettings({ autoDescribe: !s.autoDescribe }) }, s.autoDescribe ? 'AI 补描述：开' : 'AI 补描述：关'),
+          h('button', { key: 'fill', className: 'sv-btn', onClick: () => describe() }, '给没写的补上'),
           h('button', { key: 'up', className: 'sv-btn' + (upload.open ? ' on' : ''), onClick: () => setUpload((u) => ({ ...u, open: !u.open })) }, '上传图片'),
           toast ? h('span', { key: 't', className: 'sv-toast' }, toast) : null,
         ]),
@@ -262,7 +275,7 @@ window.__ModuleLoader__.load({
         ]),
 
         h('div', { key: 'items', className: 'sv-list' }, shown.length
-          ? shown.map((it) => h(ItemCard, { key: it.id, it, edits, setEdit, onPatch, onDelete }))
+          ? shown.map((it) => h(ItemCard, { key: it.id, it, edits, setEdit, onPatch, onDelete, onDescribe: (id) => describe([id]) }))
           : [h('div', { key: 'e', className: 'sv-empty' }, kw ? '没有对上的' : '库里还空着——等群友把同一张图发到 5 次，它自己就进来了')]),
 
         st.candidates.length ? h('div', { key: 'sec2', className: 'sv-sec' }, [

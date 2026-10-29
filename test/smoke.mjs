@@ -48,6 +48,18 @@ const prefixes = new Map()
 const tools = new Map()
 const intervals = []
 
+let describeCalls = 0
+const fakeLlm = {
+  stream(o) {
+    describeCalls += 1
+    const payload = '```json\n{"desc":"熊猫头指着屏幕骂人，像是要破防了","tags":["破防","开喷","熊猫头"]}\n```'
+    return (async function* () {
+      yield { type: 'text-delta', text: payload }
+      yield { type: 'finish', kind: 'stop' }
+    })()
+  },
+}
+
 function makeCtx() {
   const ctx = {
     tools: { register: (t) => { tools.set(t.name, t); return () => tools.delete(t.name) } },
@@ -55,6 +67,9 @@ function makeCtx() {
     on: () => () => {},
     inject(names, cb) {
       if (names.includes('agents')) cb({ agents: { list: () => [agent] }, effect: ctx.effect })
+      if (names.includes('llm')) cb({ llm: fakeLlm })
+      if (names.includes('agentDefaultModel')) cb({ agentDefaultModel: { currentSelection: () => ({ provider: 'fake', model: 'fake-vision' }) } })
+      if (names.includes('attachments')) cb({ attachments: { saveImage: async (o) => ({ attachmentId: 'sha256:fake', mediaType: o.mediaType, bytes: o.data.length }) } })
       if (names.includes('webServer')) {
         cb({
           effect: ctx.effect,
@@ -204,7 +219,19 @@ ok('参数保存', setRes.json.settings.promoteAt === 8 && setRes.json.settings.
 const bad = await callRoute('/api/sticker-vault/settings', { patch: { promoteAt: -3, perMember: 999 } })
 ok('参数越界被夹住', bad.json.settings.promoteAt === 2 && bad.json.settings.perMember === 20, JSON.stringify(bad.json.settings))
 
-console.log('\n== 9. 工具的其它动作')
+console.log('\n== 9. AI 补描述')
+const descState = await callRoute('/api/sticker-vault/describe', {})
+ok('/describe 能排队', descState.json.ok && descState.json.enabled === true, JSON.stringify(descState.json))
+const someId = (await callRoute('/api/sticker-vault/state', {})).json.items[0].id
+await callRoute('/api/sticker-vault/describe', { ids: [someId] })
+await sleep(2600) // 等一轮 tick 把队列里那张补上
+const after = (await callRoute('/api/sticker-vault/state', {})).json
+const described = after.items.find((x) => x.id === someId)
+ok('模型被真调了一次', describeCalls > 0, `calls=${describeCalls}`)
+ok('描述写进去了', !!(described && described.desc && described.desc.length > 4), described && described.desc)
+ok('标签也写进去了', !!(described && described.tags.includes('破防')), JSON.stringify(described && described.tags))
+
+console.log('\n== 10. 工具的其它动作')
 const note = tools.get('sticker_note')
 const stat = tools.get('sticker_stats')
 const addRes = await note.execute({ action: 'add', path: join(home, 'sticker-vault', 'images', st.items[0].id + '.png'), member: '测试', desc: '手动加' })
