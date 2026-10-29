@@ -58,6 +58,11 @@ window.__ModuleLoader__.load({
       .sv-sec h4 { margin:0; font-size:13px; font-weight:600; }
       .sv-search { flex:1 1 200px; max-width:320px; }
       .sv-toast { font-size:12px; color:color-mix(in oklab, currentColor 70%, transparent); }
+      .sv-err { font-size:12px; color:color-mix(in oklab, #e2655e 85%, currentColor); }
+      .sv-warn { font-size:12px; color:color-mix(in oklab, #d9a441 85%, currentColor); }
+      .sv-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; margin-right:5px; animation: sv-pulse 1.1s ease-in-out infinite; }
+      @keyframes sv-pulse { 0%,100% { opacity:.25; transform:scale(.8); } 50% { opacity:1; transform:scale(1); } }
+      .sv-btn[disabled] { opacity:.55; cursor:progress; }
     `
 
     function NumField({ label, value, min, max, onChange, suffix }) {
@@ -85,7 +90,19 @@ window.__ModuleLoader__.load({
           h('div', { key: 'meta', className: 'sv-meta' }, [
             `${it.member.name}${it.member.qq ? `(${it.member.qq})` : ''} · 用过 ${it.count} 次 · ${stamp(it.promotedAt)} 入库`,
             it.locked ? ' · 🔒 已锁' : '',
+            it.dstate === 'running' ? ' · AI 正在看图…' : '',
+            it.dstate === 'queued' ? ' · 排队等 AI' : '',
+            it.dstate === 'done' ? ' · AI 已补' : '',
           ].join('')),
+          it.dstate === 'running' || it.dstate === 'queued'
+            ? h('div', { key: 'ds', className: 'sv-warn' }, [
+                h('span', { key: 'd', className: 'sv-dot' }),
+                it.dstate === 'running' ? '模型正在看图写描述，一般十来秒，这块自己会刷出来' : '排在队里了，前面还有几张，轮到它就会动',
+              ])
+            : null,
+          it.dstate === 'error'
+            ? h('div', { key: 'de', className: 'sv-err' }, '补描述没成：' + (it.derr || '不知道为啥'))
+            : null,
           h('input', {
             key: 'desc', className: 'sv-in', placeholder: it.describedAt ? '描述：这张图是什么内容' : '描述还没写——点下面「AI 补」让它自己看图和聊天',
             value: desc,
@@ -102,7 +119,12 @@ window.__ModuleLoader__.load({
           }),
           h('div', { key: 'ops', className: 'sv-row' }, [
             h('button', { key: 'lock', className: 'sv-btn' + (it.locked ? ' on' : ''), onClick: () => onPatch(it.id, { locked: !it.locked }) }, it.locked ? '🔒 已锁' : '🔓 上锁'),
-            h('button', { key: 'ai', className: 'sv-btn', onClick: () => onDescribe(it.id) }, 'AI 补'),
+            h('button', {
+              key: 'ai',
+              className: 'sv-btn' + (it.dstate === 'running' ? ' on' : ''),
+              disabled: it.dstate === 'running',
+              onClick: () => onDescribe(it.id),
+            }, it.dstate === 'running' ? '补描述中…' : it.dstate === 'error' ? '重试' : 'AI 补'),
             h('button', { key: 'ctx', className: 'sv-btn', onClick: () => setOpenCtx(!openCtx) }, `语境 ${it.contexts.length}`),
             h('button', { key: 'del', className: 'sv-btn danger', onClick: () => onDelete(it) }, '删除'),
           ]),
@@ -168,7 +190,7 @@ window.__ModuleLoader__.load({
         try {
           const r = await jpost('/describe', ids ? { ids } : {})
           if (!r.enabled) return flash('补描述是关的，先打开')
-          flash(r.queued ? `排了 ${r.queued} 张，后台慢慢写` : '没有要补的')
+          flash(r.queued ? `排了 ${r.queued} 张，一张十来秒，面板会自己刷新` : '没有要补的（都写过了或关着）')
           load()
         } catch (e) { flash(String(e.message || e)) }
       }
@@ -233,6 +255,9 @@ window.__ModuleLoader__.load({
           h('span', { key: 'f', className: 'sv-chip' }, [`计数 ${s.resetDays} 天清一次`]),
           h('span', { key: 'g', className: 'sv-chip' }, [`清后库内从 ${s.resetItemTo} 次算`]),
           st.stats.pendingDescribe > 0 ? h('span', { key: 'h', className: 'sv-chip' }, ['描述待补 ', h('b', { key: 'b' }, st.stats.pendingDescribe), ' 张']) : null,
+          st.describe && st.describe.running ? h('span', { key: 'i', className: 'sv-chip' }, ['AI 正在补 ', h('b', { key: 'b' }, st.describe.running), ' 张']) : null,
+          st.describe && st.describe.queued ? h('span', { key: 'j', className: 'sv-chip' }, ['队列里还有 ', h('b', { key: 'b' }, st.describe.queued), ' 张']) : null,
+          st.describe && st.describe.failing ? h('span', { key: 'k', className: 'sv-chip' }, ['补失败的 ', h('b', { key: 'b' }, st.describe.failing), ' 张，点卡片上的重试']) : null,
         ]),
 
         h('div', { key: 'grid', className: 'sv-grid' }, [

@@ -49,9 +49,14 @@ const tools = new Map()
 const intervals = []
 
 let describeCalls = 0
+let failNext = false
 const fakeLlm = {
   stream(o) {
     describeCalls += 1
+    if (failNext) {
+      failNext = false
+      throw new Error('模型罢工了')
+    }
     const payload = '```json\n{"desc":"熊猫头指着屏幕骂人，像是要破防了","tags":["破防","开喷","熊猫头"]}\n```'
     return (async function* () {
       yield { type: 'text-delta', text: payload }
@@ -230,6 +235,19 @@ const described = after.items.find((x) => x.id === someId)
 ok('模型被真调了一次', describeCalls > 0, `calls=${describeCalls}`)
 ok('描述写进去了', !!(described && described.desc && described.desc.length > 4), described && described.desc)
 ok('标签也写进去了', !!(described && described.tags.includes('破防')), JSON.stringify(described && described.tags))
+
+console.log('\n== 9b. 补描述的状态与报错')
+const st1 = (await callRoute('/api/sticker-vault/state', {})).json
+ok('state 带 describe 汇总', !!st1.describe && typeof st1.describe.queued === 'number', JSON.stringify(st1.describe))
+const itemId2 = st1.items[1].id
+failNext = true
+await callRoute('/api/sticker-vault/describe', { ids: [itemId2] })
+await sleep(2600)
+const st2 = (await callRoute('/api/sticker-vault/state', {})).json
+const failedItem = st2.items.find((x) => x.id === itemId2)
+ok('失败挂了状态', failedItem && failedItem.dstate === 'error', JSON.stringify(failedItem && { s: failedItem.dstate, e: failedItem.derr }))
+ok('失败原因带出来了', !!(failedItem && failedItem.derr && failedItem.derr.includes('罢工')), failedItem && failedItem.derr)
+ok('汇总里有失败数和最近错误', st2.describe.failing >= 1 && !!st2.describe.lastError, JSON.stringify(st2.describe))
 
 console.log('\n== 10. 工具的其它动作')
 const note = tools.get('sticker_note')
