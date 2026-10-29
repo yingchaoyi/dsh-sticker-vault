@@ -1,6 +1,6 @@
 {
   "name": "dsh-sticker-vault",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "DSH 插件 · 表情包库：群友发的图先落盘，重复到 N 次自动入库，记作者、语境、标签；对喷/接梗时按语境捞出来发。",
   "type": "module",
   "main": "lib/index.mjs",

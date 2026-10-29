@@ -224,6 +224,26 @@ ok('参数保存', setRes.json.settings.promoteAt === 8 && setRes.json.settings.
 const bad = await callRoute('/api/sticker-vault/settings', { patch: { promoteAt: -3, perMember: 999 } })
 ok('参数越界被夹住', bad.json.settings.promoteAt === 2 && bad.json.settings.perMember === 20, JSON.stringify(bad.json.settings))
 
+console.log('\n== 8b. 信封只认开头，正文里的名字不算')
+{
+  const { splitEnvelope } = await import('../lib/index.mjs')
+  const good = splitEnvelope('[王守义(601325221)] 【群聊近况】14:39 139.1华氏度(845940812)：在吗')
+  ok('开头信封认对人', good.member && good.member.qq === '601325221', JSON.stringify(good.member))
+  const bad = splitEnvelope('【群聊近况】14:39 139.1华氏度(845940812)：在吗')
+  ok('正文里的名字不认', bad.member === null, JSON.stringify(bad.member))
+}
+
+console.log('\n== 8c. 认错人的能改回来')
+const candList = (await callRoute('/api/sticker-vault/state', {})).json.candidates
+if (candList.length) {
+  const c0 = candList[0]
+  const fixed = await callRoute('/api/sticker-vault/candidate', { key: c0.key, memberName: '刘邦', memberQQ: '2313535058' })
+  ok('候选能改归属', fixed.json.ok, JSON.stringify(fixed.json))
+  const after2 = (await callRoute('/api/sticker-vault/state', {})).json
+  const c1 = after2.candidates.find((x) => x.member.qq === '2313535058')
+  ok('改完记到对的人头上', !!c1 && c1.member.name === '刘邦')
+}
+
 console.log('\n== 9. AI 补描述')
 const descState = await callRoute('/api/sticker-vault/describe', {})
 ok('/describe 能排队', descState.json.ok && descState.json.enabled === true, JSON.stringify(descState.json))

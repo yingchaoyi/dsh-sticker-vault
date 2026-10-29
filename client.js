@@ -211,6 +211,21 @@ window.__ModuleLoader__.load({
         } catch (e) { flash(String(e.message || e)) }
       }
 
+      const [whoEdit, setWhoEdit] = useState({})
+      const setMember = (key, part) => setWhoEdit((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...part } }))
+
+      const fixMember = async (c) => {
+        const e = whoEdit[c.key] || {}
+        const memberName = e.name !== undefined ? e.name : c.member.name
+        const memberQQ = e.qq !== undefined ? e.qq : c.member.qq
+        try {
+          const r = await jpost('/candidate', { key: c.key, memberName, memberQQ })
+          if (!r.ok) return flash(r.error || '改不动')
+          setWhoEdit((prev) => { const n = { ...prev }; delete n[c.key]; return n })
+          flash('归属改了'); load()
+        } catch (err) { flash(String(err.message || err)) }
+      }
+
       const doUpload = async (file) => {
         if (!file) return
         setUpload((u) => ({ ...u, busy: true }))
@@ -307,17 +322,22 @@ window.__ModuleLoader__.load({
           h('h4', { key: 'h' }, `候选 ${st.candidates.length} 张（还没到 ${s.promoteAt} 次）`),
           h('button', { key: 'reset', className: 'sv-btn', onClick: async () => { await jpost('/reset', {}); flash('计数清了'); load() } }, '清空计数'),
         ]) : null,
-        st.candidates.length ? h('div', { key: 'cands', className: 'sv-list' }, st.candidates.map((c) => h('div', { key: c.key, className: 'sv-card' }, [
+        st.candidates.length ? h('div', { key: 'cands', className: 'sv-list' }, st.candidates.map((c) => { const we = whoEdit[c.key] || {}; return h('div', { key: c.key, className: 'sv-card' }, [
           h('img', { key: 'i', className: 'sv-thumb sm', src: `/api/sticker-vault/thumb?key=${encodeURIComponent(c.key)}`, alt: '候选', loading: 'lazy' }),
           h('div', { key: 'b', className: 'sv-main' }, [
             h('div', { key: 'm', className: 'sv-meta' }, `${c.member.name}${c.member.qq ? `(${c.member.qq})` : ''} · 出现 ${c.count} 次 · 最近 ${stamp(c.lastAt)}`),
             c.contexts.length ? h('div', { key: 'c', className: 'sv-ctx' }, c.contexts[c.contexts.length - 1].text) : null,
+            h('div', { key: 'who', className: 'sv-row' }, [
+              h('input', { key: 'n', className: 'sv-in sv-search', placeholder: '谁发的（认错了在这改）', value: we.name !== undefined ? we.name : c.member.name, onChange: (e) => setMember(c.key, { name: e.target.value }) }),
+              h('input', { key: 'q', className: 'sv-in', style: { width: '110px' }, placeholder: 'QQ', value: we.qq !== undefined ? we.qq : (c.member.qq || ''), onChange: (e) => setMember(c.key, { qq: e.target.value }) }),
+              h('button', { key: 's', className: 'sv-btn', onClick: () => fixMember(c) }, '改归属'),
+            ]),
             h('div', { key: 'o', className: 'sv-row' }, [
               h('button', { key: 'p', className: 'sv-btn', onClick: () => promote(c) }, '现在就收'),
               h('button', { key: 'd', className: 'sv-btn danger', onClick: () => dropCandidate(c) }, '扔了'),
             ]),
           ]),
-        ]))) : null,
+        ]) })) : null,
       ])
     }
 
