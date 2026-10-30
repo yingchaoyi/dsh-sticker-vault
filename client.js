@@ -283,9 +283,16 @@ window.__ModuleLoader__.load({
           h(NumField, { key: 'r2', label: '清后库内从', value: s.resetItemTo, min: 0, max: 20, suffix: '次', onChange: (v) => patchSettings({ resetItemTo: v }) }),
         ]),
 
+        s.forceSticker ? h('div', { key: 'force-row', className: 'sv-row' }, [
+          h('span', { key: 'l', className: 'sv-chip' }, ['强制发表情概率']),
+          h('input', { key: 'p', className: 'sv-in', style: { width: '76px' }, type: 'number', step: '0.05', min: '0', max: '1', value: s.forceProb, onChange: (e) => patchSettings({ forceProb: Math.min(1, Math.max(0, Number(e.target.value) || 0)) }) }),
+          h('span', { key: 'v', className: 'sv-chip' }, [Math.round((s.forceProb || 0) * 100) + '% · 每轮掷一次']),
+        ]) : null,
+
         h('div', { key: 'row', className: 'sv-row' }, [
           h('button', { key: 'auto', className: 'sv-btn' + (s.autoCapture ? ' on' : ''), onClick: () => patchSettings({ autoCapture: !s.autoCapture }) }, s.autoCapture ? '自动收录：开' : '自动收录：关'),
           h('button', { key: 'hint', className: 'sv-btn' + (s.hint ? ' on' : ''), onClick: () => patchSettings({ hint: !s.hint }) }, s.hint ? '提示词提醒：开' : '提示词提醒：关'),
+          h('button', { key: 'force', className: 'sv-btn' + (s.forceSticker ? ' on' : ''), onClick: () => patchSettings({ forceSticker: !s.forceSticker }) }, s.forceSticker ? '强制发表情：开' : '强制发表情：关'),
           h('button', { key: 'ai', className: 'sv-btn' + (s.autoDescribe ? ' on' : ''), onClick: () => patchSettings({ autoDescribe: !s.autoDescribe }) }, s.autoDescribe ? 'AI 补描述：开' : 'AI 补描述：关'),
           h('button', { key: 'fill', className: 'sv-btn', onClick: () => describe() }, '给没写的补上'),
           h('button', { key: 'up', className: 'sv-btn' + (upload.open ? ' on' : ''), onClick: () => setUpload((u) => ({ ...u, open: !u.open })) }, '上传图片'),

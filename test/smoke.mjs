@@ -41,7 +41,8 @@ const E = makeImage('E')
 // ---- 假会话 ----
 let msgs = []
 const session = { id: 's1', messages: () => msgs }
-const agent = { session, ctx: { systemPrompt: { context: () => () => {} } } }
+const promptSpecs = []
+const agent = { session, ctx: { systemPrompt: { context: (spec) => { promptSpecs.push(spec); return () => {} } } } }
 
 const exact = new Map()
 const prefixes = new Map()
@@ -244,6 +245,19 @@ if (candList.length) {
   const after2 = (await callRoute('/api/sticker-vault/state', {})).json
   const c1 = after2.candidates.find((x) => x.member.qq === '2313535058')
   ok('改完记到对的人头上', !!c1 && c1.member.name === '刘邦')
+}
+
+
+console.log('\n== 8d. 强制发表情')
+{
+  const spec = promptSpecs.find((x) => x && x.name === 'sticker-vault')
+  ok('表情库提示已挂上', !!spec)
+  await callRoute('/api/sticker-vault/settings', { patch: { forceSticker: true, forceProb: 1 } })
+  const forced = spec.text()
+  ok('概率 1 → 这一轮要求必发', forced.includes('本轮必发'), forced.slice(0, 60))
+  await callRoute('/api/sticker-vault/settings', { patch: { forceSticker: false } })
+  const normal = spec.text()
+  ok('关掉 → 回到普通提示', !normal.includes('本轮必发') && normal.includes('【表情库】'), normal.slice(0, 40))
 }
 
 console.log('\n== 9. AI 补描述')
