@@ -260,6 +260,17 @@ console.log('\n== 8d. 强制发表情')
   ok('关掉 → 回到普通提示', !normal.includes('本轮必发') && normal.includes('【表情库】'), normal.slice(0, 40))
 }
 
+console.log('\n== 8e. 发之前转 jpg')
+{
+  const { sendPathOf } = await import('../lib/index.mjs')
+  const data = JSON.parse(readFileSync(join(home, 'sticker-vault/store.json'), 'utf8'))
+  const any = data.items[0]
+  const out = sendPathOf(any)
+  ok('发图路径能算出来', typeof out === 'string' && out.length > 0, String(out))
+  const fake = { ...any, id: 'zzz-not-real' }
+  ok('转不了的不会崩', typeof sendPathOf(fake) === 'string')
+}
+
 console.log('\n== 9. AI 补描述')
 const descState = await callRoute('/api/sticker-vault/describe', {})
 ok('/describe 能排队', descState.json.ok && descState.json.enabled === true, JSON.stringify(descState.json))
