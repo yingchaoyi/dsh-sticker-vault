@@ -231,6 +231,8 @@ console.log('\n== 8b. 信封只认开头，正文里的名字不算')
   ok('开头信封认对人', good.member && good.member.qq === '601325221', JSON.stringify(good.member))
   const bad = splitEnvelope('【群聊近况】14:39 139.1华氏度(845940812)：在吗')
   ok('正文里的名字不认', bad.member === null, JSON.stringify(bad.member))
+  const prefixed = splitEnvelope('【群聊近况（背景参考）】17:26 轨道大嫖客(422671528)：需求搞这么快\n\n[139.1华氏度(845940812)] 只有半截')
+  ok('群聊近况块后面才是真信封', prefixed.member?.qq === '845940812', JSON.stringify(prefixed.member))
 }
 
 console.log('\n== 8c. 认错人的能改回来')
