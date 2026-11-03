@@ -261,6 +261,24 @@ console.log('\n== 8d. 强制发表情')
   ok('关掉 → 回到普通提示', !normal.includes('本轮必发') && normal.includes('【表情库】'), normal.slice(0, 40))
 }
 
+console.log('\n== 8d2. 发送日志')
+{
+  const spec = promptSpecs.find((x) => x && x.name === 'sticker-vault')
+  await callRoute('/api/sticker-vault/log/clear', {})
+  await callRoute('/api/sticker-vault/settings', { patch: { forceSticker: true, forceProb: 1 } })
+  spec.text()
+  let r = (await callRoute('/api/sticker-vault/log', {})).json
+  ok('掷骰会记一条日志', Array.isArray(r.log) && r.log.length >= 1, `len=${(r.log || []).length}`)
+  ok('记了概率和掷到的值', typeof (r.log[0] || {}).prob === 'number' && typeof (r.log[0] || {}).roll === 'number', JSON.stringify(r.log[0] || {}))
+  ok('概率 1 → 这条标记命中', (r.log[0] || {}).hit === true)
+  ok('今日统计有掷骰次数', !!(r.stats && r.stats.rolled >= 1), JSON.stringify(r.stats || {}))
+  await callRoute('/api/sticker-vault/sent', { ok: true })
+  r = (await callRoute('/api/sticker-vault/log', {})).json
+  ok('桥插件回报后标记已发出', (r.log[0] || {}).sentAt > 0, JSON.stringify(r.log[0] || {}))
+  ok('实发数 +1', !!(r.stats && r.stats.sent >= 1), JSON.stringify(r.stats || {}))
+  await callRoute('/api/sticker-vault/settings', { patch: { forceSticker: false } })
+}
+
 console.log('\n== 8e. 发之前转 jpg')
 {
   const { sendPathOf } = await import('../lib/index.mjs')

@@ -137,6 +137,7 @@ window.__ModuleLoader__.load({
       const [st, setSt] = useState(initialState || null)
       const [err, setErr] = useState('')
       const [q, setQ] = useState('')
+      const [lq, setLq] = useState('')
       const [edits, setEdits] = useState({})
       const [toast, setToast] = useState('')
       const [upload, setUpload] = useState({ open: false, member: '', desc: '', tags: '', busy: false })
@@ -257,6 +258,11 @@ window.__ModuleLoader__.load({
 
       const s = st.settings
       const kw = q.trim().toLowerCase()
+      const ls = st.logStats || { rolled: 0, hit: 0, sent: 0, rate: 0, total: 0 }
+      const lkw = lq.trim().toLowerCase()
+      const logAll = st.log || []
+      const logShown = logAll.filter((x) => !lkw || [String(x.group || ''), x.hit ? '命中' : '没中', x.sentAt ? '已发' : '', String(x.pick || '')].join(' ').toLowerCase().includes(lkw))
+      const fmtTime = (t) => { const d = new Date(t); const z = (n) => String(n).padStart(2, '0'); return `${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}` }
       const shown = st.items.filter((it) => !kw || [it.desc, (it.tags || []).join(' '), it.member.name, ...(it.contexts || []).map((c) => c.text)].join(' ').toLowerCase().includes(kw))
 
       return h('div', { className: 'sv-wrap' }, [
@@ -315,6 +321,24 @@ window.__ModuleLoader__.load({
             ]),
           ]),
         ]) : null,
+
+        h('div', { key: 'logsec', className: 'sv-sec' }, [
+          h('h4', { key: 'h' }, `发送日志：今天掷骰 ${ls.rolled} 次，中 ${ls.hit} 次，确认发出 ${ls.sent} 次（命中率 ${ls.rate}%）`),
+          h('div', { key: 'r', className: 'sv-row' }, [
+            h('input', { key: 'q', className: 'sv-in sv-search', placeholder: '搜群号 / 命中 / 已发 / 图片 id', value: lq, onChange: (e) => setLq(e.target.value) }),
+            h('button', { key: 'c', className: 'sv-btn danger', onClick: async () => { if (!confirm('把日志清空？')) return; await jpost('/log/clear', {}); flash('日志清了'); load() } }, '清空日志'),
+            h('span', { key: 'n', className: 'sv-chip' }, `共 ${logAll.length} 条`),
+          ]),
+          h('div', { key: 'l', className: 'sv-list' }, logShown.length
+            ? logShown.slice(0, 40).map((x, i) => h('div', { key: 'lg' + i, className: 'sv-row' }, [
+              h('span', { key: 't', className: 'sv-chip' }, fmtTime(x.at)),
+              h('span', { key: 'r', className: 'sv-chip' }, x.hit ? (x.sentAt ? (x.sentOk === false ? '发出失败' : '已发出') : '命中·等确认') : '没中'),
+              h('span', { key: 'p', className: 'sv-chip' }, `概率 ${Math.round((x.prob || 0) * 100)}% 掷到 ${Number(x.roll || 0).toFixed(3)}`),
+              h('span', { key: 'g', className: 'sv-chip' }, x.group ? `群 ${x.group}` : `会话 ${String(x.sid || '').slice(-8)}`),
+              x.pick ? h('span', { key: 'pk', className: 'sv-chip' }, String(x.pick).slice(0, 18)) : null,
+            ]))
+            : [h('div', { key: 'e', className: 'sv-empty' }, lkw ? '没有对上的记录' : '还没掷过骰子：把「强制发表情」打开、并且回过话，这里就会一条条记下概率、掷到的值和有没有真发出去')]),
+        ]),
 
         h('div', { key: 'sec1', className: 'sv-sec' }, [
           h('h4', { key: 'h' }, `库里 ${shown.length} 张`),
