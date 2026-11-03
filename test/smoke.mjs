@@ -313,7 +313,8 @@ await waitTick()
 let stG = (await callRoute('/api/sticker-vault/state', {})).json
 const candsAfterNew = stG.stats.candidates
 ok('新图进了候选', candsAfterNew >= 1, `candidates=${candsAfterNew}`)
-await callRoute('/api/sticker-vault/item', { all: true })
+const dropAll = await callRoute('/api/sticker-vault/delete', { all: true })
+ok('「全部扔了」走 /delete {all:true} 能真清空', dropAll.code === 200 && dropAll.json.dropped === candsAfterNew, JSON.stringify(dropAll.json))
 ok('全部扔了之后候选清零', (await callRoute('/api/sticker-vault/state', {})).json.stats.candidates === 0)
 const keepMsgs = msgs.slice(-3)
 msgs.splice(0, msgs.length - keepMsgs.length) // 模拟会话被压缩：长度变短
