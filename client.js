@@ -31,6 +31,9 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
+      .sv-tabs { display:flex; gap:6px; margin:10px 0 2px; }
+      .sv-tab { border:1px solid transparent; background:color-mix(in oklab, currentColor 7%, transparent); color:inherit; opacity:.72; border-radius:8px; padding:6px 14px; font-size:13px; cursor:pointer; }
+      .sv-tab.on { opacity:1; background:color-mix(in oklab, currentColor 16%, transparent); border-color:color-mix(in oklab, currentColor 22%, transparent); }
       .sv-wrap { display:flex; flex-direction:column; gap:14px; color:currentColor; font-size:13px; }
       .sv-chips { display:flex; flex-wrap:wrap; gap:8px; }
       .sv-chip { padding:3px 9px; border-radius:999px; background:color-mix(in oklab, currentColor 8%, transparent); white-space:nowrap; }
@@ -138,6 +141,7 @@ window.__ModuleLoader__.load({
       const [err, setErr] = useState('')
       const [q, setQ] = useState('')
       const [lq, setLq] = useState('')
+      const [tab, setTab] = useState('lib')
       const [edits, setEdits] = useState({})
       const [toast, setToast] = useState('')
       const [upload, setUpload] = useState({ open: false, member: '', desc: '', tags: '', busy: false })
@@ -262,6 +266,7 @@ window.__ModuleLoader__.load({
       const lkw = lq.trim().toLowerCase()
       const logAll = st.log || []
       const logShown = logAll.filter((x) => !lkw || [String(x.group || ''), x.hit ? '命中' : '没中', x.sentAt ? '已发' : '', String(x.pick || '')].join(' ').toLowerCase().includes(lkw))
+      const hide = (t) => ({ display: tab === t ? '' : 'none' })
       const fmtTime = (t) => { const d = new Date(t); const z = (n) => String(n).padStart(2, '0'); return `${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}` }
       const shown = st.items.filter((it) => !kw || [it.desc, (it.tags || []).join(' '), it.member.name, ...(it.contexts || []).map((c) => c.text)].join(' ').toLowerCase().includes(kw))
 
@@ -281,7 +286,13 @@ window.__ModuleLoader__.load({
           st.describe && st.describe.failing ? h('span', { key: 'k', className: 'sv-chip' }, ['补失败的 ', h('b', { key: 'b' }, st.describe.failing), ' 张，点卡片上的重试']) : null,
         ]),
 
-        h('div', { key: 'grid', className: 'sv-grid' }, [
+        h('div', { key: 'tabs', className: 'sv-tabs' }, [
+          ...[['lib', '库里'], ['log', '日志'], ['set', '设置']].map(([k, t]) => h('button', {
+            key: k, className: 'sv-tab' + (tab === k ? ' on' : ''), onClick: () => setTab(k),
+          }, t)),
+        ]),
+
+        h('div', { key: 'grid', className: 'sv-grid', style: hide('set') }, [
           h(NumField, { key: 'p', label: '达标次数', value: s.promoteAt, min: 2, max: 99, suffix: '次', onChange: (v) => patchSettings({ promoteAt: v }) }),
           h(NumField, { key: 'm', label: '每人最多', value: s.perMember, min: 1, max: 20, suffix: '张', onChange: (v) => patchSettings({ perMember: v }) }),
           h(NumField, { key: 't', label: '总容量', value: s.maxTotal, min: 5, max: 500, suffix: '张', onChange: (v) => patchSettings({ maxTotal: v }) }),
@@ -289,13 +300,13 @@ window.__ModuleLoader__.load({
           h(NumField, { key: 'r2', label: '清后库内从', value: s.resetItemTo, min: 0, max: 20, suffix: '次', onChange: (v) => patchSettings({ resetItemTo: v }) }),
         ]),
 
-        s.forceSticker ? h('div', { key: 'force-row', className: 'sv-row' }, [
+        s.forceSticker ? h('div', { key: 'force-row', className: 'sv-row', style: hide('set') }, [
           h('span', { key: 'l', className: 'sv-chip' }, ['强制发表情概率']),
           h('input', { key: 'p', className: 'sv-in', style: { width: '76px' }, type: 'number', step: '0.05', min: '0', max: '1', value: s.forceProb, onChange: (e) => patchSettings({ forceProb: Math.min(1, Math.max(0, Number(e.target.value) || 0)) }) }),
           h('span', { key: 'v', className: 'sv-chip' }, [Math.round((s.forceProb || 0) * 100) + '% · 每轮掷一次']),
         ]) : null,
 
-        h('div', { key: 'row', className: 'sv-row' }, [
+        h('div', { key: 'row', className: 'sv-row', style: hide('set') }, [
           h('button', { key: 'auto', className: 'sv-btn' + (s.autoCapture ? ' on' : ''), onClick: () => patchSettings({ autoCapture: !s.autoCapture }) }, s.autoCapture ? '自动收录：开' : '自动收录：关'),
           h('button', { key: 'hint', className: 'sv-btn' + (s.hint ? ' on' : ''), onClick: () => patchSettings({ hint: !s.hint }) }, s.hint ? '提示词提醒：开' : '提示词提醒：关'),
           h('button', { key: 'force', className: 'sv-btn' + (s.forceSticker ? ' on' : ''), onClick: () => patchSettings({ forceSticker: !s.forceSticker }) }, s.forceSticker ? '强制发表情：开' : '强制发表情：关'),
@@ -305,7 +316,7 @@ window.__ModuleLoader__.load({
           toast ? h('span', { key: 't', className: 'sv-toast' }, toast) : null,
         ]),
 
-        upload.open ? h('div', { key: 'upload', className: 'sv-card' }, [
+        upload.open ? h('div', { key: 'upload', className: 'sv-card', style: hide('set') }, [
           h('div', { key: 'm', className: 'sv-main' }, [
             h('div', { key: 'r', className: 'sv-row' }, [
               h('input', { key: 'mb', className: 'sv-in sv-search', placeholder: '谁提供的（昵称，可空）', value: upload.member, onChange: (e) => setUpload((u) => ({ ...u, member: e.target.value })) }),
@@ -322,7 +333,7 @@ window.__ModuleLoader__.load({
           ]),
         ]) : null,
 
-        h('div', { key: 'logsec', className: 'sv-sec' }, [
+        h('div', { key: 'logsec', className: 'sv-sec', style: hide('log') }, [
           h('h4', { key: 'h' }, `发送日志：今天掷骰 ${ls.rolled} 次，中 ${ls.hit} 次，确认发出 ${ls.sent} 次（命中率 ${ls.rate}%）`),
           h('div', { key: 'r', className: 'sv-row' }, [
             h('input', { key: 'q', className: 'sv-in sv-search', placeholder: '搜群号 / 命中 / 已发 / 图片 id', value: lq, onChange: (e) => setLq(e.target.value) }),
@@ -340,21 +351,21 @@ window.__ModuleLoader__.load({
             : [h('div', { key: 'e', className: 'sv-empty' }, lkw ? '没有对上的记录' : '还没掷过骰子：把「强制发表情」打开、并且回过话，这里就会一条条记下概率、掷到的值和有没有真发出去')]),
         ]),
 
-        h('div', { key: 'sec1', className: 'sv-sec' }, [
+        h('div', { key: 'sec1', className: 'sv-sec', style: hide('lib') }, [
           h('h4', { key: 'h' }, `库里 ${shown.length} 张`),
           h('input', { key: 'q', className: 'sv-in sv-search', placeholder: '搜描述 / 标签 / 谁发的 / 语境', value: q, onChange: (e) => setQ(e.target.value) }),
         ]),
 
-        h('div', { key: 'items', className: 'sv-list' }, shown.length
+        h('div', { key: 'items', className: 'sv-list', style: hide('lib') }, shown.length
           ? shown.map((it) => h(ItemCard, { key: it.id, it, edits, setEdit, onPatch, onDelete, onDescribe: (id) => describe([id]) }))
           : [h('div', { key: 'e', className: 'sv-empty' }, kw ? '没有对上的' : '库里还空着——等群友把同一张图发到 5 次，它自己就进来了')]),
 
-        st.candidates.length ? h('div', { key: 'sec2', className: 'sv-sec' }, [
+        st.candidates.length ? h('div', { key: 'sec2', className: 'sv-sec', style: hide('lib') }, [
           h('h4', { key: 'h' }, `候选 ${st.candidates.length} 张（还没到 ${s.promoteAt} 次）`),
           h('button', { key: 'reset', className: 'sv-btn', onClick: async () => { await jpost('/reset', {}); flash('计数清了'); load() } }, '清空计数'),
           h('button', { key: 'dropall', className: 'sv-btn danger', onClick: async () => { if (!confirm('把候选全扔了？')) return; const r = await jpost('/delete', { all: true }); flash(`扔了 ${r && r.dropped || 0} 张`); load() } }, '全部扔了'),
         ]) : null,
-        st.candidates.length ? h('div', { key: 'cands', className: 'sv-list' }, st.candidates.map((c) => { const we = whoEdit[c.key] || {}; return h('div', { key: c.key, className: 'sv-card' }, [
+        st.candidates.length ? h('div', { key: 'cands', className: 'sv-list', style: hide('lib') }, st.candidates.map((c) => { const we = whoEdit[c.key] || {}; return h('div', { key: c.key, className: 'sv-card' }, [
           h('img', { key: 'i', className: 'sv-thumb sm', src: `/api/sticker-vault/thumb?key=${encodeURIComponent(c.key)}`, alt: '候选', loading: 'lazy' }),
           h('div', { key: 'b', className: 'sv-main' }, [
             h('div', { key: 'm', className: 'sv-meta' }, `${c.member.name}${c.member.qq ? `(${c.member.qq})` : ''} · 出现 ${c.count} 次 · 最近 ${stamp(c.lastAt)}`),

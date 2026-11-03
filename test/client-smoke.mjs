@@ -93,5 +93,7 @@ assert(has('/api/sticker-vault/thumb?key='), '候选缩略图路由')
 assert(has('现在就收') && has('扔了'), '候选操作按钮')
 assert(has('清空计数'), '清空计数按钮')
 assert(text.length > 200, '渲染出的文字量合理（' + text.length + ' 字）')
+assert(has('库里') && has('日志') && has('设置'), '三个页签都在（库里 / 日志 / 设置）')
+assert(has('发送日志'), '日志独立成页')
 
 console.log('\n' + (process.exitCode ? '有失败项' : '全过'))
