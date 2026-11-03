@@ -305,5 +305,22 @@ ok('工具能手动加图', addRes.ok, addRes.text)
 const statsRes = await stat.execute({})
 ok('统计能读', statsRes.ok && statsRes.text.includes('库'), statsRes.text)
 
+console.log('\n== 11. 会话被压缩后不重扫历史（候选不会诈尸）')
+const itemsBefore = (await callRoute('/api/sticker-vault/state', {})).json.stats.items
+const G = makeImage('G')
+pushImage(G, '[刘邦(2313535058)] 新图')
+await waitTick()
+let stG = (await callRoute('/api/sticker-vault/state', {})).json
+const candsAfterNew = stG.stats.candidates
+ok('新图进了候选', candsAfterNew >= 1, `candidates=${candsAfterNew}`)
+await callRoute('/api/sticker-vault/item', { all: true })
+ok('全部扔了之后候选清零', (await callRoute('/api/sticker-vault/state', {})).json.stats.candidates === 0)
+const keepMsgs = msgs.slice(-3)
+msgs.splice(0, msgs.length - keepMsgs.length) // 模拟会话被压缩：长度变短
+await waitTick()
+const stAfter = (await callRoute('/api/sticker-vault/state', {})).json
+ok('压缩后候选没有诈尸', stAfter.stats.candidates === 0, `candidates=${stAfter.stats.candidates}`)
+ok('压缩后库内计数没有被重扫刷高', stAfter.stats.items === itemsBefore, `items=${stAfter.stats.items} 之前=${itemsBefore}`)
+
 console.log(`\n${failed ? '✗' : '✓'} 全过：${passed} 项${failed ? `，失败 ${failed} 项` : ''}`)
 process.exit(failed ? 1 : 0)

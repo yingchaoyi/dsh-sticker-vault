@@ -328,6 +328,7 @@ window.__ModuleLoader__.load({
         st.candidates.length ? h('div', { key: 'sec2', className: 'sv-sec' }, [
           h('h4', { key: 'h' }, `候选 ${st.candidates.length} 张（还没到 ${s.promoteAt} 次）`),
           h('button', { key: 'reset', className: 'sv-btn', onClick: async () => { await jpost('/reset', {}); flash('计数清了'); load() } }, '清空计数'),
+          h('button', { key: 'dropall', className: 'sv-btn danger', onClick: async () => { if (!confirm('把候选全扔了？')) return; const r = await jpost('/delete', { all: true }); flash(`扔了 ${r && r.dropped || 0} 张`); load() } }, '全部扔了'),
         ]) : null,
         st.candidates.length ? h('div', { key: 'cands', className: 'sv-list' }, st.candidates.map((c) => { const we = whoEdit[c.key] || {}; return h('div', { key: c.key, className: 'sv-card' }, [
           h('img', { key: 'i', className: 'sv-thumb sm', src: `/api/sticker-vault/thumb?key=${encodeURIComponent(c.key)}`, alt: '候选', loading: 'lazy' }),
