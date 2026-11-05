@@ -43,6 +43,7 @@ window.__ModuleLoader__.load({
       .sv-num span { opacity:.75; }
       .sv-num input { width:64px; padding:3px 6px; border:1px solid color-mix(in oklab, currentColor 18%, transparent); border-radius:6px; background:transparent; color:inherit; }
       .sv-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+      .sv-chat { flex:1 1 100%; opacity:.72; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .sv-list { display:flex; flex-direction:column; gap:10px; }
       .sv-card { display:flex; gap:12px; padding:10px; border-radius:10px; background:color-mix(in oklab, currentColor 4%, transparent); border:1px solid color-mix(in oklab, currentColor 10%, transparent); }
       .sv-thumb { width:96px; height:96px; flex:0 0 96px; border-radius:8px; object-fit:cover; background:color-mix(in oklab, currentColor 8%, transparent); }
@@ -265,7 +266,7 @@ window.__ModuleLoader__.load({
       const ls = st.logStats || { rolled: 0, hit: 0, sent: 0, rate: 0, total: 0 }
       const lkw = lq.trim().toLowerCase()
       const logAll = st.log || []
-      const logShown = logAll.filter((x) => !lkw || [String(x.group || ''), x.hit ? '命中' : '没中', x.sentAt ? '已发' : '', String(x.pick || '')].join(' ').toLowerCase().includes(lkw))
+      const logShown = logAll.filter((x) => !lkw || [String(x.group || ''), x.hit ? '命中' : '没中', x.sent || x.sentAt ? '发图' : '没发图', String(x.pick || x.file || ''), String(x.userText || ''), String(x.botText || '')].join(' ').toLowerCase().includes(lkw))
       const hide = (t) => ({ display: tab === t ? '' : 'none' })
       const fmtTime = (t) => { const d = new Date(t); const z = (n) => String(n).padStart(2, '0'); return `${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}` }
       const shown = st.items.filter((it) => !kw || [it.desc, (it.tags || []).join(' '), it.member.name, ...(it.contexts || []).map((c) => c.text)].join(' ').toLowerCase().includes(kw))
@@ -334,7 +335,7 @@ window.__ModuleLoader__.load({
         ]) : null,
 
         h('div', { key: 'logsec', className: 'sv-sec', style: hide('log') }, [
-          h('h4', { key: 'h' }, `发送日志：今天掷骰 ${ls.rolled} 次，中 ${ls.hit} 次，确认发出 ${ls.sent} 次（命中率 ${ls.rate}%）`),
+          h('h4', { key: 'h' }, `发送日志：今天记了 ${ls.rolled} 条，发了图 ${ls.sent} 条（发图率 ${ls.rate}%）`),
           h('div', { key: 'r', className: 'sv-row' }, [
             h('input', { key: 'q', className: 'sv-in sv-search', placeholder: '搜群号 / 命中 / 已发 / 图片 id', value: lq, onChange: (e) => setLq(e.target.value) }),
             h('button', { key: 'c', className: 'sv-btn danger', onClick: async () => { if (!confirm('把日志清空？')) return; await jpost('/log/clear', {}); flash('日志清了'); load() } }, '清空日志'),
@@ -343,12 +344,15 @@ window.__ModuleLoader__.load({
           h('div', { key: 'l', className: 'sv-list' }, logShown.length
             ? logShown.slice(0, 40).map((x, i) => h('div', { key: 'lg' + i, className: 'sv-row' }, [
               h('span', { key: 't', className: 'sv-chip' }, fmtTime(x.at)),
-              h('span', { key: 'r', className: 'sv-chip' }, x.hit ? (x.sentAt ? (x.sentOk === false ? '发出失败' : '已发出') : '命中·等确认') : '没中'),
-              h('span', { key: 'p', className: 'sv-chip' }, `概率 ${Math.round((x.prob || 0) * 100)}% 掷到 ${Number(x.roll || 0).toFixed(3)}`),
+              x.source === 'turn'
+                ? h('span', { key: 'r', className: 'sv-chip', title: x.sent ? '这一轮贴了库里的图' : '这一轮只有文字，没贴图' }, x.sent ? '发图' : '没发图')
+                : h('span', { key: 'r', className: 'sv-chip' }, x.hit ? (x.sentAt ? (x.sentOk === false ? '出口补发失败' : '出口已补发') : '强制命中·等确认') : '强制没中'),
+              x.source !== 'turn' ? h('span', { key: 'p', className: 'sv-chip' }, `概率 ${Math.round((x.prob || 0) * 100)}% 掷到 ${Number(x.roll || 0).toFixed(3)}`) : null,
               h('span', { key: 'g', className: 'sv-chip' }, x.group ? `群 ${x.group}` : `会话 ${String(x.sid || '').slice(-8)}`),
-              x.pick ? h('span', { key: 'pk', className: 'sv-chip' }, String(x.pick).slice(0, 18)) : null,
+              x.source === 'turn' ? h('span', { key: 'c', className: 'sv-chat' }, `${x.userText || '（没读到上一条）'} → ${x.botText || '（空回复）'}`) : null,
+              x.pick || x.file ? h('span', { key: 'pk', className: 'sv-chip' }, String(x.pick || x.file).slice(0, 18)) : null,
             ]))
-            : [h('div', { key: 'e', className: 'sv-empty' }, lkw ? '没有对上的记录' : '还没掷过骰子：把「强制发表情」打开、并且回过话，这里就会一条条记下概率、掷到的值和有没有真发出去')]),
+            : [h('div', { key: 'e', className: 'sv-empty' }, lkw ? '没有对上的记录' : '还没有记录：群里回过话之后，这里会一条条记下「群友说了啥 → 老子回了啥 → 有没有贴图」')]),
         ]),
 
         h('div', { key: 'sec1', className: 'sv-sec', style: hide('lib') }, [

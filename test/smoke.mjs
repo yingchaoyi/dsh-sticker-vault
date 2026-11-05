@@ -279,6 +279,38 @@ console.log('\n== 8d2. 发送日志')
   await callRoute('/api/sticker-vault/settings', { patch: { forceSticker: false } })
 }
 
+console.log('\n== 8d3. 逐轮日志：发没发都记一笔')
+{
+  await callRoute('/api/sticker-vault/log/clear', {})
+  // 第一轮：只回文字
+  msgs.push({ role: 'user', content: [{ type: 'text', text: '[刘邦(2313535058)] 在吗' }] })
+  msgs.push({ role: 'assistant', content: [{ type: 'text', text: '在，说话' }] })
+  await waitTick()
+  let r = (await callRoute('/api/sticker-vault/log', {})).json
+  ok('纯文字也记一条', r.log.length === 1 && r.log[0].source === 'turn', JSON.stringify(r.log[0] || {}))
+  ok('这条标记没发图', r.log[0].sent === false)
+  ok('记下了上一条群友消息', String(r.log[0].userText || '').includes('在吗'), r.log[0].userText)
+
+  // 第二轮：回复里贴了库里的图
+  const stNow = (await callRoute('/api/sticker-vault/state', {})).json
+  const storeNow = JSON.parse(readFileSync(join(home, 'sticker-vault', 'store.json'), 'utf8'))
+  const path = join(home, 'sticker-vault', 'images', storeNow.items[0].file)
+  ok('拿到库里图的路径', existsSync(path), path)
+  msgs.push({ role: 'user', content: [{ type: 'text', text: '[刘邦(2313535058)] 来张图' }] })
+  msgs.push({ role: 'assistant', content: [{ type: 'text', text: `好\n![表情](${path})` }] })
+  await waitTick()
+  r = (await callRoute('/api/sticker-vault/log', {})).json
+  ok('贴了图记成发图', r.log[0].sent === true, JSON.stringify(r.log[0] || {}))
+  ok('记下了贴的是哪张', !!r.log[0].file, r.log[0].file)
+  ok('同一轮不会重复记', r.log.length === 2, `len=${r.log.length}`)
+  ok('统计里有发图数', r.stats.sent >= 1 && r.stats.rolled >= 2, JSON.stringify(r.stats || {}))
+
+  // 没有新回复就不再记
+  await waitTick()
+  r = (await callRoute('/api/sticker-vault/log', {})).json
+  ok('没有新回复就不刷日志', r.log.length === 2, `len=${r.log.length}`)
+}
+
 console.log('\n== 8e. 发之前转 jpg')
 {
   const { sendPathOf } = await import('../lib/index.mjs')
